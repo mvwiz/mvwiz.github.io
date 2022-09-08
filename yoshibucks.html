@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
     <head>
@@ -32,6 +33,8 @@ collection = 'yoshidrops';
 schema = 'yoshibucks';
 token = 'YOSHIBK';
 display = 'YB$ ';
+fetchDelay = 4;
+fetchRetries = 10;
 
 endpoint = 'https://wax.greymass.com/';
 
@@ -131,7 +134,7 @@ async function fetchtemplates()
       "&page=" + page
     ;
 
-    const response = await fetch(url, { headers: { "Content-Type": "text/plain" }, method: "GET" });
+    const response = await fetchRetry(url, fetchDelay, fetchRetries, { headers: { "Content-Type": "text/plain" }, method: "GET" });
     const templateData = await response.json();
 
     if (templateData.success === true)
@@ -166,7 +169,7 @@ async function fetchburncount(templateId)
 {
   const url = 'https://wax.api.atomicassets.io/atomicassets/v1/templates/' + collection + '/' + templateId + '/stats';
 
-  const response = await fetch(url, { headers: { "Content-Type": "text/plain" }, method: "GET" });
+  const response = await fetchRetry(url, fetchDelay, fetchRetries, { headers: { "Content-Type": "text/plain" }, method: "GET" });
   const templateData = await response.json();
 
   if (templateData.success === true)
@@ -184,7 +187,7 @@ async function fetchtokenizednft()
 {
   var path = "v1/chain/get_table_rows";
   var data = JSON.stringify({json:true,code:"tokenizednft",scope:token,table:"values",limit:100});
-  const response = await fetch(endpoint + path, { headers: { "Content-Type": "text/plain" }, body: data, method: "POST" });
+  const response = await fetchRetry(endpoint + path, fetchDelay, fetchRetries, { headers: { "Content-Type": "text/plain" }, body: data, method: "POST" });
   const body = await response.json();
   if (body.rows && Array.isArray(body.rows))
   {
@@ -207,7 +210,7 @@ async function fetchvaultcount(vault)
 {
   const url = 'https://wax.api.atomicassets.io/atomicassets/v1/accounts/' + vault + '/' + collection;
 
-  const response = await fetch(url, { headers: { "Content-Type": "text/plain" }, method: "GET" });
+  const response = await fetchRetry(url, fetchDelay, fetchRetries, { headers: { "Content-Type": "text/plain" }, method: "GET" });
   const templateData = await response.json();
 
   if (templateData.success === true)
@@ -226,6 +229,20 @@ function comma(num)
   return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
+function wait(delay){
+    return new Promise((resolve) => setTimeout(resolve, delay));
+}
+
+function fetchRetry(url, delay, tries, fetchOptions = {}) {
+    function onError(err){
+        triesLeft = tries - 1;
+        if(!triesLeft){
+            throw err;
+        }
+        return wait(delay).then(() => fetchRetry(url, delay, triesLeft, fetchOptions));
+    }
+    return fetch(url,fetchOptions).then((response) => {if (response.ok) { return response; } else { return onError() }}).catch(onError);
+}
         </script>
     </body>
 </html>
